@@ -1,10 +1,10 @@
 "use client";
 
-import { useParams } from "next/navigation";
 import { JoinProject } from "@/components/projects/JoinProject";
+import { usePathParam } from "@/lib/usePathParam";
 
 export function JoinPageClient() {
-  const params = useParams<{ token: string }>();
-  const token = String(params.token ?? "");
+  const token = usePathParam("join");
+  if (!token || token === "__") return null;
   return <JoinProject token={token} />;
 }

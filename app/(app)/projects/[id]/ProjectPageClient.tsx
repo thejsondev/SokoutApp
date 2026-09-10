@@ -1,10 +1,10 @@
 "use client";
 
-import { useParams } from "next/navigation";
 import { ProjectDetail } from "@/components/projects/ProjectDetail";
+import { usePathParam } from "@/lib/usePathParam";
 
 export function ProjectPageClient() {
-  const params = useParams<{ id: string }>();
-  const id = String(params.id ?? "");
+  const id = usePathParam("project");
+  if (!id || id === "__") return null;
   return <ProjectDetail id={id} />;
 }

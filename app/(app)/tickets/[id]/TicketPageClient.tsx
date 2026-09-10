@@ -1,10 +1,10 @@
 "use client";
 
-import { useParams } from "next/navigation";
 import { TicketDetail } from "@/components/tickets/TicketDetail";
+import { usePathParam } from "@/lib/usePathParam";
 
 export function TicketPageClient() {
-  const params = useParams<{ id: string }>();
-  const id = String(params.id ?? "");
+  const id = usePathParam("ticket");
+  if (!id || id === "__") return null;
   return <TicketDetail id={id} />;
 }
