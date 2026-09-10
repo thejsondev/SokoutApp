@@ -41,7 +41,7 @@
             <td style="padding:0 28px 8px 28px;">
               <p style="margin:0;font-size:15px;line-height:1.55;color:#525252;">
                 Der Code ist <strong style="color:#111111;">10 Minuten</strong> gültig
-                @if($expiresAt)
+                @if ($expiresAt)
                   (bis {{ $expiresAt->timezone('Europe/Berlin')->format('H:i') }} Uhr)
                 @endif
                 und kann nur einmal verwendet werden.
@@ -64,7 +64,7 @@
 
         <p style="margin:18px 0 0 0;font-size:12px;line-height:1.5;color:#a3a3a3;max-width:520px;">
           Diese Nachricht wurde automatisch von {{ $appName }} gesendet.
-          @if(!empty($appUrl))
+          @if (! empty($appUrl))
             <br><a href="{{ $appUrl }}" style="color:#737373;text-decoration:underline;">{{ $appUrl }}</a>
           @endif
         </p>
