@@ -66,11 +66,121 @@ function backend_path(array $config): string
     return git_root() . '/' . trim($config['backend_dir'] ?? 'backend', '/');
 }
 
+function php_cli(): string
+{
+    static $resolved = null;
+    if ($resolved !== null) {
+        return $resolved;
+    }
+
+    $candidates = [
+        '/opt/alt/php83/usr/bin/php',
+        '/opt/alt/php84/usr/bin/php',
+        '/opt/alt/php82/usr/bin/php',
+        '/usr/local/bin/php',
+        'php',
+    ];
+
+    // Prefer a real CLI binary — PHP_BINARY under LiteSpeed is often lsphp/cgi.
+    foreach ($candidates as $bin) {
+        if ($bin === 'php') {
+            $check = run_cmd('command -v php');
+            if ($check['ok'] && trim($check['output']) !== '') {
+                $resolved = trim($check['output']);
+                return $resolved;
+            }
+            continue;
+        }
+        if (is_file($bin) && is_executable($bin)) {
+            $resolved = $bin;
+            return $resolved;
+        }
+    }
+
+    $resolved = (PHP_BINARY && is_file(PHP_BINARY)) ? PHP_BINARY : 'php';
+    return $resolved;
+}
+
+function composer_cmd(): ?string
+{
+    static $resolved = null;
+    if ($resolved !== null) {
+        return $resolved === '' ? null : $resolved;
+    }
+
+    $php = escapeshellarg(php_cli());
+    $phars = [
+        git_root() . '/backend/composer.phar',
+        git_root() . '/composer.phar',
+        '/opt/cpanel/ea-wappspector/composer.phar',
+        '/usr/local/bin/composer',
+        '/usr/bin/composer',
+    ];
+
+    foreach ($phars as $phar) {
+        if (is_file($phar)) {
+            $resolved = $php . ' ' . escapeshellarg($phar);
+            return $resolved;
+        }
+    }
+
+    $which = run_cmd('command -v composer');
+    if ($which['ok'] && trim($which['output']) !== '') {
+        $resolved = escapeshellarg(trim($which['output']));
+        return $resolved;
+    }
+
+    $resolved = '';
+    return null;
+}
+
+function vendor_autoload(array $config): string
+{
+    return backend_path($config) . '/vendor/autoload.php';
+}
+
+function ensure_vendor(array $config): array
+{
+    if (is_file(vendor_autoload($config))) {
+        return ['ok' => true, 'output' => 'vendor/ already present', 'installed' => false];
+    }
+
+    $composer = composer_cmd();
+    if ($composer === null) {
+        return [
+            'ok' => false,
+            'output' => "Composer not found. Install Composer or place composer.phar in the project root/backend.",
+            'installed' => false,
+        ];
+    }
+
+    $result = run_cmd(
+        $composer . ' install --no-dev --optimize-autoloader --no-interaction',
+        backend_path($config)
+    );
+    $result['installed'] = true;
+
+    if ($result['ok'] && !is_file(vendor_autoload($config))) {
+        $result['ok'] = false;
+        $result['output'] .= "\ncomposer finished but vendor/autoload.php is still missing.";
+    }
+
+    return $result;
+}
+
 function artisan(array $config, string $args): array
 {
+    if (!is_file(vendor_autoload($config))) {
+        return [
+            'ok' => false,
+            'output' => "Laravel vendor/ is missing. Click Install/pull first (runs composer install), then try again.",
+            'code' => 1,
+        ];
+    }
+
     $backend = backend_path($config);
-    $php = PHP_BINARY ?: 'php';
-    return run_cmd(escapeshellcmd($php) . ' artisan ' . $args, $backend);
+    $php = escapeshellarg(php_cli());
+    return run_cmd($php . ' artisan ' . $args, $backend);
 }
 
 $config = load_config();
@@ -107,7 +217,15 @@ if ($authed && $action !== '') {
             $pull = run_cmd('git pull --ff-only origin ' . escapeshellarg($branch), git_root());
             $after = run_cmd('git rev-parse HEAD', git_root());
 
-            $composer = run_cmd('composer install --no-dev --optimize-autoloader --no-interaction', backend_path($config));
+            $composerBin = composer_cmd();
+            if ($composerBin === null) {
+                $composer = ['ok' => false, 'output' => 'Composer not found on this host.'];
+            } else {
+                $composer = run_cmd(
+                    $composerBin . ' install --no-dev --optimize-autoloader --no-interaction',
+                    backend_path($config)
+                );
+            }
 
             $buildOut = '';
             if (!empty($config['build_frontend'])) {
@@ -127,24 +245,47 @@ if ($authed && $action !== '') {
         }
 
         if ($action === 'migrate') {
-            $migrate = artisan($config, 'migrate --force --no-interaction');
-            $flash = [
-                'title' => $migrate['ok'] ? 'Migrations completed' : 'Migration failed',
-                'body' => $migrate['output'],
-                'ok' => $migrate['ok'],
-                'updated' => true,
-            ];
+            $vendor = ensure_vendor($config);
+            if (!$vendor['ok']) {
+                $flash = [
+                    'title' => 'Migration blocked — dependencies missing',
+                    'body' => "[composer install]\n{$vendor['output']}",
+                    'ok' => false,
+                    'updated' => false,
+                ];
+            } else {
+                $migrate = artisan($config, 'migrate --force --no-interaction');
+                $prefix = !empty($vendor['installed'])
+                    ? "[composer install]\n{$vendor['output']}\n\n"
+                    : '';
+                $flash = [
+                    'title' => $migrate['ok'] ? 'Migrations completed' : 'Migration failed',
+                    'body' => $prefix . $migrate['output'],
+                    'ok' => $migrate['ok'],
+                    'updated' => true,
+                ];
+            }
         }
 
         if ($action === 'optimize') {
-            $clear = artisan($config, 'optimize:clear');
-            $cache = artisan($config, 'config:cache');
-            $flash = [
-                'title' => ($clear['ok'] && $cache['ok']) ? 'Caches refreshed' : 'Cache refresh failed',
-                'body' => "[optimize:clear]\n{$clear['output']}\n\n[config:cache]\n{$cache['output']}",
-                'ok' => $clear['ok'] && $cache['ok'],
-                'updated' => true,
-            ];
+            $vendor = ensure_vendor($config);
+            if (!$vendor['ok']) {
+                $flash = [
+                    'title' => 'Cache refresh blocked — dependencies missing',
+                    'body' => "[composer install]\n{$vendor['output']}",
+                    'ok' => false,
+                    'updated' => false,
+                ];
+            } else {
+                $clear = artisan($config, 'optimize:clear');
+                $cache = artisan($config, 'config:cache');
+                $flash = [
+                    'title' => ($clear['ok'] && $cache['ok']) ? 'Caches refreshed' : 'Cache refresh failed',
+                    'body' => "[optimize:clear]\n{$clear['output']}\n\n[config:cache]\n{$cache['output']}",
+                    'ok' => $clear['ok'] && $cache['ok'],
+                    'updated' => true,
+                ];
+            }
         }
     }
 }
@@ -164,6 +305,7 @@ $status = [
     'pending_migrations' => [],
     'env_exists' => false,
     'frontend_exists' => false,
+    'vendor_exists' => false,
     'updated' => true,
 ];
 
@@ -187,28 +329,31 @@ if ($authed) {
     $status['updated'] = $status['behind'] === 0;
 
     $status['env_exists'] = is_file(backend_path($config) . '/.env');
+    $status['vendor_exists'] = is_file(vendor_autoload($config));
     $status['frontend_exists'] = is_dir(git_root() . '/' . ($config['frontend_dir'] ?? 'frontend'))
         && is_file(git_root() . '/' . ($config['frontend_dir'] ?? 'frontend') . '/index.html');
 
-    $pending = artisan($config, 'migrate:status --pending=1 --no-interaction');
-    if ($pending['ok'] || $pending['output'] !== '') {
-        $lines = preg_split('/\R/', $pending['output']) ?: [];
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if ($line === '' || stripos($line, 'Migration name') !== false || stripos($line, 'Pending') === 0) {
-                continue;
-            }
-            // migrate:status --pending prints migration file names
-            if (preg_match('/\d{4}_\d{2}_\d{2}_\d{6}_\S+/', $line, $m) || preg_match('/^[0-9].+\.php$/', $line)) {
-                $status['pending_migrations'][] = $m[0] ?? $line;
-            } elseif (stripos($line, 'Pending') !== false || preg_match('/^\s*\d+\s+/', $line)) {
-                // Laravel 11+ table style: keep non-header rows that look like migrations
-                if (preg_match('/(\d{4}_\d{2}_\d{2}_\d{6}_[a-z0-9_]+)/i', $line, $m2)) {
-                    $status['pending_migrations'][] = $m2[1];
+    if ($status['vendor_exists']) {
+        $pending = artisan($config, 'migrate:status --pending=1 --no-interaction');
+        if ($pending['ok'] || $pending['output'] !== '') {
+            $lines = preg_split('/\R/', $pending['output']) ?: [];
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if ($line === '' || stripos($line, 'Migration name') !== false || stripos($line, 'Pending') === 0) {
+                    continue;
+                }
+                // migrate:status --pending prints migration file names
+                if (preg_match('/\d{4}_\d{2}_\d{2}_\d{6}_\S+/', $line, $m) || preg_match('/^[0-9].+\.php$/', $line)) {
+                    $status['pending_migrations'][] = $m[0] ?? $line;
+                } elseif (stripos($line, 'Pending') !== false || preg_match('/^\s*\d+\s+/', $line)) {
+                    // Laravel 11+ table style: keep non-header rows that look like migrations
+                    if (preg_match('/(\d{4}_\d{2}_\d{2}_\d{6}_[a-z0-9_]+)/i', $line, $m2)) {
+                        $status['pending_migrations'][] = $m2[1];
+                    }
                 }
             }
+            $status['pending_migrations'] = array_values(array_unique($status['pending_migrations']));
         }
-        $status['pending_migrations'] = array_values(array_unique($status['pending_migrations']));
     }
 }
 
@@ -347,6 +492,9 @@ if ($authed) {
         <?php endif; ?>
         <?php if (!$status['env_exists']): ?>
           <span class="pill warn">backend/.env missing</span>
+        <?php endif; ?>
+        <?php if (!$status['vendor_exists']): ?>
+          <span class="pill warn">vendor/ missing — migrate will install deps first</span>
         <?php endif; ?>
         <?php if (!$status['frontend_exists']): ?>
           <span class="pill warn">frontend/ build missing</span>
