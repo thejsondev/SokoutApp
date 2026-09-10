@@ -104,8 +104,9 @@ function php_cli(): string
     }
 
     $candidates = [
-        '/opt/alt/php83/usr/bin/php',
         '/opt/alt/php84/usr/bin/php',
+        '/opt/alt/php85/usr/bin/php',
+        '/opt/alt/php83/usr/bin/php',
         '/opt/alt/php82/usr/bin/php',
         '/usr/local/bin/php',
         'php',
