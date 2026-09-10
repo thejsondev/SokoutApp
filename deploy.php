@@ -35,6 +35,29 @@ function h(string $value): string
     return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+function cmd_env(): array
+{
+    $home = getenv('HOME') ?: '';
+    if ($home === '' || !is_dir($home)) {
+        $home = is_dir('/home/infleggc') ? '/home/infleggc' : git_root();
+    }
+
+    $composerHome = $home . '/.composer';
+    if (!is_dir($composerHome)) {
+        @mkdir($composerHome, 0700, true);
+    }
+
+    $env = $_ENV + $_SERVER;
+    $env['HOME'] = $home;
+    $env['COMPOSER_HOME'] = $composerHome;
+    $env['COMPOSER_ALLOW_SUPERUSER'] = '1';
+    if (empty($env['PATH'])) {
+        $env['PATH'] = '/usr/local/bin:/usr/bin:/bin';
+    }
+
+    return $env;
+}
+
 function run_cmd(string $cmd, ?string $cwd = null): array
 {
     $descriptor = [
@@ -42,7 +65,14 @@ function run_cmd(string $cmd, ?string $cwd = null): array
         1 => ['pipe', 'w'],
         2 => ['pipe', 'w'],
     ];
-    $process = proc_open($cmd, $descriptor, $pipes, $cwd ?? __DIR__, null, ['bypass_shell' => false]);
+    $process = proc_open(
+        $cmd,
+        $descriptor,
+        $pipes,
+        $cwd ?? __DIR__,
+        cmd_env(),
+        ['bypass_shell' => false]
+    );
     if (!is_resource($process)) {
         return ['ok' => false, 'output' => 'Failed to start process.', 'code' => 1];
     }
