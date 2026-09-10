@@ -1,0 +1,16 @@
+# Protect Laravel app files when /backend is web-accessible.
+# All traffic is sent into public/.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Deny common sensitive paths explicitly
+    RewriteRule ^(\.env|composer\.(json|lock)|artisan)(/|$) - [F,L]
+    RewriteRule ^(app|bootstrap|config|database|resources|routes|storage|tests|vendor)(/|$) - [F,L]
+
+    # Everything else → public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Fallback deny listing
+Options -Indexes

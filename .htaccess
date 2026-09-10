@@ -1,0 +1,74 @@
+# Apache document root for https://sokout.app
+# Frontend lives in /frontend (static Next.js export).
+# API is proxied to Laravel at /backend/public.
+
+Options -Indexes
+DirectoryIndex index.html index.php
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Pass Authorization header to PHP (Sanctum / Bearer tokens)
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    RewriteCond %{HTTP:x-xsrf-token} .
+    RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
+
+    # Force HTTPS
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Block sensitive paths
+    RewriteRule (^|/)\.git - [F,L]
+    RewriteRule (^|/)\.env - [F,L]
+    RewriteRule ^deploy\.config\.php$ - [F,L]
+    RewriteRule ^(node_modules|scripts|app|components|lib|backend/(app|bootstrap|config|database|resources|routes|storage|tests|vendor))(/|$) - [F,L]
+
+    # Laravel API → backend/public
+    RewriteRule ^api(?:/|$) backend/public/index.php [QSA,L]
+
+    # Laravel health / storage (if linked)
+    RewriteRule ^up$ backend/public/index.php [QSA,L]
+    RewriteRule ^storage/(.*)$ backend/public/storage/$1 [L]
+
+    # Deploy panel (PHP at repo root)
+    RewriteRule ^deploy\.php$ - [L]
+
+    # Prefer real files/folders already under document root
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Serve static frontend build
+    RewriteCond %{DOCUMENT_ROOT}/frontend%{REQUEST_URI} -f
+    RewriteRule ^(.*)$ frontend/$1 [L]
+
+    RewriteCond %{DOCUMENT_ROOT}/frontend%{REQUEST_URI} -d
+    RewriteCond %{DOCUMENT_ROOT}/frontend%{REQUEST_URI}/index.html -f
+    RewriteRule ^(.*)$ frontend/$1/index.html [L]
+
+    # Dynamic Next.js routes (placeholder pages from generateStaticParams)
+    RewriteRule ^join/[^/]+/?$ frontend/join/__/index.html [L]
+    RewriteRule ^projects/[^/]+/?$ frontend/projects/__/index.html [L]
+    RewriteRule ^tickets/[^/]+/?$ frontend/tickets/__/index.html [L]
+
+    # Trailing-slash HTML pages in frontend/
+    RewriteCond %{DOCUMENT_ROOT}/frontend/$1/index.html -f
+    RewriteRule ^(.+)/?$ frontend/$1/index.html [L]
+
+    RewriteCond %{DOCUMENT_ROOT}/frontend/index.html -f
+    RewriteRule ^$ frontend/index.html [L]
+
+    # Fallback
+    RewriteRule ^ frontend/index.html [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+    <FilesMatch "sw\.js$">
+        Header set Service-Worker-Allowed "/"
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+    </FilesMatch>
+</IfModule>

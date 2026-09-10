@@ -1,0 +1,29 @@
+{
+  "name": "sokout-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 0.0.0.0",
+    "dev:phone": "ngrok http 3000",
+    "build": "STATIC_EXPORT=1 next build && node scripts/sync-frontend.mjs",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "lucide-react": "^1.32.0",
+    "next": "^16.3.1",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "^16.3.1",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
