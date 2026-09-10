@@ -132,6 +132,56 @@ function php_cli(): string
     return $resolved;
 }
 
+/**
+ * PHP binary + -d extension=... flags so Composer/Artisan work on
+ * CloudLinux alt-php builds where shared modules are disabled by default.
+ */
+function php_cli_cmd(): string
+{
+    static $resolved = null;
+    if ($resolved !== null) {
+        return $resolved;
+    }
+
+    $bin = php_cli();
+    $cmd = escapeshellarg($bin);
+
+    $moduleDir = null;
+    if (preg_match('#(/opt/alt/php\d+)/usr/bin/php$#', $bin, $m)) {
+        $candidate = $m[1] . '/usr/lib64/php/modules';
+        if (is_dir($candidate)) {
+            $moduleDir = $candidate;
+        }
+    }
+
+    if ($moduleDir !== null) {
+        // Keep this list focused on what Composer + Laravel need and what
+        // CloudLinux leaves commented out in php.d/default.ini.
+        $extensions = [
+            'phar',
+            'mbstring',
+            'fileinfo',
+            'dom',
+            'xmlwriter',
+            'xmlreader',
+            'zip',
+            'intl',
+            'bcmath',
+            'sodium',
+            'posix',
+        ];
+        foreach ($extensions as $ext) {
+            $so = $moduleDir . '/' . $ext . '.so';
+            if (is_file($so)) {
+                $cmd .= ' -d ' . escapeshellarg('extension=' . $so);
+            }
+        }
+    }
+
+    $resolved = $cmd;
+    return $resolved;
+}
+
 function composer_cmd(): ?string
 {
     static $resolved = null;
@@ -139,7 +189,7 @@ function composer_cmd(): ?string
         return $resolved === '' ? null : $resolved;
     }
 
-    $php = escapeshellarg(php_cli());
+    $php = php_cli_cmd();
     $phars = [
         git_root() . '/backend/composer.phar',
         git_root() . '/composer.phar',
@@ -157,7 +207,8 @@ function composer_cmd(): ?string
 
     $which = run_cmd('command -v composer');
     if ($which['ok'] && trim($which['output']) !== '') {
-        $resolved = escapeshellarg(trim($which['output']));
+        // Native composer binary still needs our PHP via env; prefer phar path.
+        $resolved = 'COMPOSER_PHP=' . escapeshellarg(php_cli()) . ' ' . escapeshellarg(trim($which['output']));
         return $resolved;
     }
 
@@ -210,8 +261,7 @@ function artisan(array $config, string $args): array
     }
 
     $backend = backend_path($config);
-    $php = escapeshellarg(php_cli());
-    return run_cmd($php . ' artisan ' . $args, $backend);
+    return run_cmd(php_cli_cmd() . ' artisan ' . $args, $backend);
 }
 
 $config = load_config();
