@@ -1,4 +1,4 @@
-const CACHE_NAME = "sokout-v6";
+const CACHE_NAME = "sokout-v7";
 const PRECACHE_URLS = ["/", "/install", "/login", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
