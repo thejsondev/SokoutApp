@@ -18,7 +18,6 @@ export function LoginFlow() {
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
-  const [debugCode, setDebugCode] = useState<string | null>(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [address, setAddress] = useState("");
@@ -44,12 +43,11 @@ export function LoginFlow() {
     setPending(true);
     setError(null);
     try {
-      const result = await api<{ message: string; debug_code?: string }>("/auth/request-code", {
+      await api<{ message: string }>("/auth/request-code", {
         method: "POST",
         body: { email },
         auth: false,
       });
-      setDebugCode(result.debug_code ?? null);
       setStep("code");
     } catch (err) {
       setError(err instanceof ApiError ? err.firstError() : "Code konnte nicht gesendet werden.");
@@ -160,13 +158,10 @@ export function LoginFlow() {
         {step === "code" && (
           <form onSubmit={verify} className="space-y-4">
             <p className="text-sm text-neutral-500 dark:text-neutral-400">
-              Code an <span className="font-medium text-neutral-800 dark:text-neutral-200">{email}</span> gesendet.
+              Wir haben einen 6-stelligen Code an{" "}
+              <span className="font-medium text-neutral-800 dark:text-neutral-200">{email}</span>{" "}
+              gesendet. Bitte prüfe auch deinen Spam-Ordner.
             </p>
-            {debugCode && (
-              <p className="rounded-2xl bg-[#3CB346]/10 px-4 py-2 text-center text-sm text-[#2e9a38]">
-                Dev-Code: {debugCode}
-              </p>
-            )}
             <input
               inputMode="numeric"
               autoComplete="one-time-code"

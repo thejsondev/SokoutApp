@@ -18,14 +18,21 @@ class LoginCodeMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Dein Sokout-Code',
+            subject: 'Dein Anmeldecode für Sokout',
         );
     }
 
     public function content(): Content
     {
         return new Content(
-            markdown: 'mail.login-code',
+            html: 'mail.login-code',
+            text: 'mail.login-code-text',
+            with: [
+                'code' => $this->loginCode->code,
+                'expiresAt' => $this->loginCode->expires_at,
+                'appName' => config('app.name', 'Sokout'),
+                'appUrl' => rtrim((string) config('app.url'), '/'),
+            ],
         );
     }
 }

@@ -39,16 +39,10 @@ class AuthController extends Controller
 
         Mail::to($email)->send(new LoginCodeMail($loginCode));
 
-        $payload = [
-            'message' => 'Code gesendet.',
+        return response()->json([
+            'message' => 'Code per E-Mail gesendet.',
             'expires_in' => 600,
-        ];
-
-        if (config('app.debug')) {
-            $payload['debug_code'] = $loginCode->code;
-        }
-
-        return response()->json($payload);
+        ]);
     }
 
     public function verifyCode(VerifyLoginCodeRequest $request): JsonResponse
