@@ -2,7 +2,7 @@
 
 import { useParams, usePathname } from "next/navigation";
 
-function readPathParam(pathname: string, kind: "project" | "ticket" | "join"): string {
+function readPathParam(pathname: string, kind: "project" | "ticket" | "chat" | "join"): string {
   const parts = pathname.split("/").filter(Boolean);
   if (kind === "join") {
     const i = parts.indexOf("join");
@@ -10,6 +10,10 @@ function readPathParam(pathname: string, kind: "project" | "ticket" | "join"): s
   }
   if (kind === "project") {
     const i = parts.indexOf("projects");
+    return i >= 0 ? (parts[i + 1] ?? "") : "";
+  }
+  if (kind === "chat") {
+    const i = parts.indexOf("chats");
     return i >= 0 ? (parts[i + 1] ?? "") : "";
   }
   const i = parts.indexOf("tickets");
@@ -21,7 +25,7 @@ function readPathParam(pathname: string, kind: "project" | "ticket" | "join"): s
  * page (`/projects/__/`). `useParams()` can then return `__` instead of the
  * real URL segment — so we prefer the live pathname.
  */
-export function usePathParam(kind: "project" | "ticket" | "join"): string {
+export function usePathParam(kind: "project" | "ticket" | "chat" | "join"): string {
   const pathname = usePathname() || "";
   const params = useParams<{ id?: string; token?: string }>();
   const fromRouter = String(

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\Role;
+use App\Models\Conversation;
 use App\Models\PushSubscription;
 use App\Models\Ticket;
 use App\Models\User;
@@ -29,6 +30,25 @@ class PushNotifier
     public function notifyTicketLater(Ticket $ticket, User $actor, string $title, string $body): void
     {
         $this->notifyTicket($ticket, $actor, $title, $body);
+    }
+
+    public function notifyChat(Conversation $conversation, User $actor, string $title, string $body): void
+    {
+        $peerId = (int) $actor->id === (int) $conversation->hausmeister_user_id
+            ? (int) $conversation->hausverwaltung_user_id
+            : (int) $conversation->hausmeister_user_id;
+
+        $peer = User::query()->find($peerId);
+        if (! $peer) {
+            return;
+        }
+
+        $this->sendToUsers(
+            collect([$peer]),
+            $title,
+            $body,
+            '/chats/'.$conversation->id,
+        );
     }
 
     /**

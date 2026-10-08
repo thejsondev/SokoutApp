@@ -54,6 +54,7 @@ DirectoryIndex index.html index.php
     RewriteRule ^join/[^/]+/?$ frontend/join/__/index.html [L]
     RewriteRule ^projects/[^/]+/?$ frontend/projects/__/index.html [L]
     RewriteRule ^tickets/[^/]+/?$ frontend/tickets/__/index.html [L]
+    RewriteRule ^chats/[^/]+/?$ frontend/chats/__/index.html [L]
 
     # Trailing-slash HTML pages in frontend/
     RewriteCond %{DOCUMENT_ROOT}/frontend/$1/index.html -f

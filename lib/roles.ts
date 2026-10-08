@@ -15,3 +15,11 @@ export function isRole(value: string | null | undefined): value is Role {
 export function isHausmeister(role: Role): boolean {
   return role === "hausmeister";
 }
+
+export function isHausverwaltung(role: Role): boolean {
+  return role === "hausverwaltung";
+}
+
+export function canUseDirectChat(role: Role): boolean {
+  return role === "hausmeister" || role === "hausverwaltung";
+}

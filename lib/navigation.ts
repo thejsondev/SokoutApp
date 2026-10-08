@@ -18,6 +18,7 @@ const account: NavItem = { href: "/account", label: "Konto", icon: UserRound };
 export function isLockedAppPath(pathname: string): boolean {
   if (pathname.startsWith("/projects/") && pathname !== "/projects") return true;
   if (pathname.startsWith("/tickets/") && pathname !== "/tickets") return true;
+  if (pathname.startsWith("/chats/") && pathname !== "/chats") return true;
   return false;
 }
 

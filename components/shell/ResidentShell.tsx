@@ -2,11 +2,13 @@
 
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { ChatHeaderButton } from "@/components/chat/ChatHeaderButton";
 import { IslandNav } from "@/components/nav/IslandNav";
 import { SidebarNav } from "@/components/nav/SidebarNav";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { getNavItems, isLockedAppPath } from "@/lib/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { isHausverwaltung } from "@/lib/roles";
 
 export function ResidentShell({ children }: { children: React.ReactNode }) {
   const { role } = useAuth();
@@ -35,12 +37,18 @@ export function ResidentShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <main className="h-dvh md:pl-60">
+      <main className="flex h-dvh flex-col md:pl-60">
+        {role && isHausverwaltung(role) && (
+          <header className="flex shrink-0 items-center justify-end px-5 pt-4 md:px-8">
+            <ChatHeaderButton />
+          </header>
+        )}
         <div
           className={[
-            "mx-auto h-full min-h-0 w-full max-w-2xl px-5 pt-6 md:px-8 md:pt-10",
+            "mx-auto min-h-0 w-full max-w-2xl flex-1 px-5 pt-6 md:px-8 md:pt-10",
             "pb-[max(7rem,calc(env(safe-area-inset-bottom)+5.5rem))] md:pb-10",
             lockPage ? "flex flex-col overflow-hidden" : "overflow-y-auto",
+            role && isHausverwaltung(role) ? "pt-3 md:pt-4" : "",
           ].join(" ")}
         >
           {children}

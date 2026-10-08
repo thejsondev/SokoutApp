@@ -62,6 +62,16 @@ class User extends Authenticatable
         return $this->hasMany(PushSubscription::class);
     }
 
+    public function hausmeisterConversations(): HasMany
+    {
+        return $this->hasMany(Conversation::class, 'hausmeister_user_id');
+    }
+
+    public function hausverwaltungConversations(): HasMany
+    {
+        return $this->hasMany(Conversation::class, 'hausverwaltung_user_id');
+    }
+
     public function canAccessProject(Project $project): bool
     {
         if ($this->role === Role::Hausmeister) {

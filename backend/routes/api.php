@@ -1,6 +1,9 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ChatFileController;
+use App\Http\Controllers\Api\ChatMessageController;
+use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\ProjectJoinController;
 use App\Http\Controllers\Api\PushSubscriptionController;
@@ -57,4 +60,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('ticket-messages/{ticketMessage}/files', [TicketFileController::class, 'store']);
     Route::get('ticket-files/{ticketFile}', [TicketFileController::class, 'show'])->name('ticket-files.show');
     Route::delete('ticket-files/{ticketFile}', [TicketFileController::class, 'destroy']);
+
+    Route::get('chats', [ConversationController::class, 'index']);
+    Route::post('chats', [ConversationController::class, 'store']);
+    Route::get('chats/{conversation}', [ConversationController::class, 'show']);
+    Route::get('chats/{conversation}/messages', [ChatMessageController::class, 'index']);
+    Route::post('chats/{conversation}/messages', [ChatMessageController::class, 'store']);
+    Route::get('chat-files/{chatFile}', [ChatFileController::class, 'show'])->name('chat-files.show');
 });

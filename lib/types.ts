@@ -55,3 +55,41 @@ export type ApiTicket = {
   rated?: boolean;
   created_at: string;
 };
+
+export type ApiChatFile = {
+  id: number;
+  original_name: string;
+  mime_type: string | null;
+  size: number;
+  is_image?: boolean;
+  is_audio?: boolean;
+  url: string;
+};
+
+export type ApiChatMessage = {
+  id: number;
+  conversation_id?: number;
+  body: string | null;
+  user?: ApiUser;
+  files?: ApiChatFile[];
+  created_at: string;
+};
+
+export type ApiConversation = {
+  id: number;
+  peer?: ApiUser | null;
+  hausmeister?: ApiUser;
+  hausverwaltung?: ApiUser;
+  messages?: ApiChatMessage[];
+  last_message?: ApiChatMessage | null;
+  last_message_at?: string | null;
+  created_at: string;
+};
+
+export type ApiChatContact = {
+  peer: ApiUser;
+  conversation_id: number | null;
+  project_titles: string[];
+  last_message: ApiChatMessage | null;
+  last_message_at: string | null;
+};

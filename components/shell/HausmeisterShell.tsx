@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { ChatHeaderButton } from "@/components/chat/ChatHeaderButton";
 import { IslandNav } from "@/components/nav/IslandNav";
 import { SidebarNav } from "@/components/nav/SidebarNav";
 import { LogoutButton } from "@/components/auth/LogoutButton";
@@ -44,6 +45,7 @@ export function HausmeisterShell({ children }: { children: React.ReactNode }) {
             <p className="text-sm font-medium text-neutral-900 dark:text-white">Hausmeister</p>
             <p className="text-xs text-neutral-500 dark:text-neutral-400">Admin-Bereich</p>
           </div>
+          <ChatHeaderButton />
         </header>
         <div
           className={[
