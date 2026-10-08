@@ -52,6 +52,7 @@ DirectoryIndex index.html index.php
 
     # Dynamic Next.js routes (placeholder pages from generateStaticParams)
     RewriteRule ^join/[^/]+/?$ frontend/join/__/index.html [L]
+    RewriteRule ^projects/[^/]+/presence/?$ frontend/projects/__/presence/index.html [L]
     RewriteRule ^projects/[^/]+/?$ frontend/projects/__/index.html [L]
     RewriteRule ^tickets/[^/]+/?$ frontend/tickets/__/index.html [L]
     RewriteRule ^chats/[^/]+/?$ frontend/chats/__/index.html [L]

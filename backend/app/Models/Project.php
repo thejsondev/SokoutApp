@@ -55,6 +55,11 @@ class Project extends Model
         return $this->hasMany(Ticket::class);
     }
 
+    public function presenceLogs(): HasMany
+    {
+        return $this->hasMany(ProjectPresenceLog::class);
+    }
+
     public function purgeStoredFiles(): void
     {
         $this->loadMissing('tickets.messages.files');

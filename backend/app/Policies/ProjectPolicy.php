@@ -41,4 +41,10 @@ class ProjectPolicy
         return $user->role === Role::Hausmeister
             || $project->hausverwaltung_user_id === $user->id;
     }
+
+    public function togglePresence(User $user, Project $project): bool
+    {
+        return $user->role === Role::Hausmeister
+            && $user->canAccessProject($project);
+    }
 }

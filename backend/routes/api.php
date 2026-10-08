@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\ChatMessageController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\ProjectJoinController;
+use App\Http\Controllers\Api\ProjectPresenceController;
 use App\Http\Controllers\Api\PushSubscriptionController;
 use App\Http\Controllers\Api\ProjectMemberController;
 use App\Http\Controllers\Api\TicketController;
@@ -40,6 +41,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('projects/{project}/members', [ProjectMemberController::class, 'store']);
     Route::put('projects/{project}/members', [ProjectMemberController::class, 'update']);
     Route::delete('projects/{project}/members/{user}', [ProjectMemberController::class, 'destroy']);
+
+    Route::get('projects/{project}/presence', [ProjectPresenceController::class, 'show']);
+    Route::get('projects/{project}/presence-logs', [ProjectPresenceController::class, 'index']);
+    Route::post('projects/{project}/presence/toggle', [ProjectPresenceController::class, 'toggle']);
 
     Route::get('projects/{project}/tickets', [TicketController::class, 'index']);
     Route::post('projects/{project}/tickets', [TicketController::class, 'store']);

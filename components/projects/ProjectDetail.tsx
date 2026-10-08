@@ -1,6 +1,19 @@
 "use client";
 
-import { ArrowDownNarrowWide, ArrowUpNarrowWide, Building2, MapPin, Pencil, Phone, Plus, QrCode, Users } from "lucide-react";
+import {
+  ArrowDownNarrowWide,
+  ArrowUpNarrowWide,
+  Building2,
+  ChevronRight,
+  Home,
+  MapPin,
+  Pencil,
+  Phone,
+  Plus,
+  QrCode,
+  Users,
+} from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { CreateTicketModal } from "@/components/projects/CreateTicketModal";
 import { EditProjectModal } from "@/components/projects/EditProjectModal";
@@ -9,7 +22,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ProjectDetailSkeleton } from "@/components/ui/skeletons";
 import { TicketCard } from "@/components/tickets/TicketCard";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { api, unwrapData } from "@/lib/api";
+import { api, ApiError, unwrapData } from "@/lib/api";
 import { isHausmeister } from "@/lib/roles";
 import {
   filterAndSortTickets,
@@ -19,7 +32,7 @@ import {
   type SortOrder,
   type StatusFilter,
 } from "@/lib/tickets";
-import type { ApiProject, ApiTicket } from "@/lib/types";
+import type { ApiProject, ApiTicket, ApiUser } from "@/lib/types";
 
 function initials(firstName: string, lastName: string) {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
@@ -34,6 +47,8 @@ export function ProjectDetail({ id }: { id: string }) {
   const [ticketOpen, setTicketOpen] = useState(false);
   const [bewohnerOpen, setBewohnerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [togglingPresence, setTogglingPresence] = useState(false);
+  const [presenceError, setPresenceError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
 
@@ -83,6 +98,43 @@ export function ProjectDetail({ id }: { id: string }) {
   const openCount = tickets.filter((ticket) => isOpenTicket(ticket.status)).length;
   const bewohner = (project.members ?? []).filter((member) => member.role === "bewohner");
   const memberCount = bewohner.length;
+  const projectId = project.id;
+  const isPresent = Boolean(project.presence?.is_present);
+  const anyonePresent = Boolean(project.presence?.anyone_present);
+  const presentUsers = project.presence?.present_users ?? [];
+
+  async function togglePresence() {
+    if (togglingPresence) return;
+    setTogglingPresence(true);
+    setPresenceError(null);
+    try {
+      const payload = await api<{
+        data: {
+          is_present: boolean;
+          present_users: ApiUser[];
+        };
+      }>(`/projects/${projectId}/presence/toggle`, { method: "POST" });
+
+      setProject((current) =>
+        current
+          ? {
+              ...current,
+              presence: {
+                is_present: payload.data.is_present,
+                anyone_present: payload.data.present_users.length > 0,
+                present_users: payload.data.present_users,
+              },
+            }
+          : current,
+      );
+    } catch (err) {
+      setPresenceError(
+        err instanceof ApiError ? err.firstError() : "Status konnte nicht geändert werden.",
+      );
+    } finally {
+      setTogglingPresence(false);
+    }
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden">
@@ -101,6 +153,20 @@ export function ProjectDetail({ id }: { id: string }) {
             <div className="flex shrink-0 items-center gap-2">
               {hm && (
                 <>
+                  <button
+                    type="button"
+                    onClick={() => void togglePresence()}
+                    disabled={togglingPresence}
+                    className={`rounded-full p-2.5 disabled:opacity-60 ${
+                      isPresent
+                        ? "bg-[#3CB346] text-white shadow-[0_8px_18px_rgba(60,179,70,0.28)]"
+                        : "bg-neutral-100 text-neutral-400 dark:bg-neutral-800 dark:text-neutral-500"
+                    }`}
+                    aria-label={isPresent ? "Als weg markieren" : "Als im Haus markieren"}
+                    title={isPresent ? "Im Haus" : "Weg"}
+                  >
+                    <Home className="h-5 w-5" />
+                  </button>
                   <button
                     type="button"
                     onClick={() => setEditOpen(true)}
@@ -139,7 +205,46 @@ export function ProjectDetail({ id }: { id: string }) {
               )}
             </div>
           </div>
+          {presenceError && (
+            <p className="mt-2 text-sm text-red-600">{presenceError}</p>
+          )}
         </div>
+
+        <Link
+          href={`/projects/${project.id}/presence`}
+          className={`flex items-center gap-3 rounded-[24px] px-4 py-3.5 transition ${
+            anyonePresent
+              ? "bg-[#3CB346]/12 dark:bg-[#3CB346]/15"
+              : "bg-neutral-50 dark:bg-neutral-900"
+          }`}
+        >
+          <span
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+              anyonePresent
+                ? "bg-[#3CB346] text-white"
+                : "bg-neutral-200 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"
+            }`}
+          >
+            <Home className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span
+              className={`block font-medium ${
+                anyonePresent
+                  ? "text-[#1f7a2a] dark:text-emerald-200"
+                  : "text-neutral-900 dark:text-white"
+              }`}
+            >
+              {anyonePresent ? "Hausmeister ist im Haus" : "Hausmeister ist weg"}
+            </span>
+            <span className="mt-0.5 block truncate text-xs text-neutral-500">
+              {presentUsers.length > 0
+                ? presentUsers.map((person) => `${person.first_name} ${person.last_name}`).join(", ")
+                : "Kommen & Gehen ansehen"}
+            </span>
+          </span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-neutral-400" />
+        </Link>
 
         {hm && (
           <div className="grid grid-cols-2 gap-2">

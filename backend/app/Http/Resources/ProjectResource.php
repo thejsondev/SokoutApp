@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Controllers\Api\ProjectPresenceController;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -12,6 +13,8 @@ class ProjectResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $presentUsers = ProjectPresenceController::presentUsers($this->resource);
+
         return [
             'id' => $this->id,
             'title' => $this->title,
@@ -25,6 +28,11 @@ class ProjectResource extends JsonResource
             ),
             'hausverwaltung' => UserResource::make($this->whenLoaded('hausverwaltung')),
             'members' => UserResource::collection($this->whenLoaded('members')),
+            'presence' => [
+                'is_present' => ProjectPresenceController::isPresent($this->resource, $request->user()),
+                'anyone_present' => $presentUsers->isNotEmpty(),
+                'present_users' => UserResource::collection($presentUsers),
+            ],
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

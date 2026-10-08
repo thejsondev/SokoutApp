@@ -12,6 +12,21 @@ export type ApiUser = {
   role: Role;
 };
 
+export type ApiPresenceLog = {
+  id: number;
+  project_id: number;
+  event: "arrive" | "leave";
+  user?: ApiUser;
+  created_at: string;
+};
+
+export type ApiProjectPresence = {
+  is_present: boolean;
+  anyone_present: boolean;
+  present_users: ApiUser[];
+  logs?: ApiPresenceLog[];
+};
+
 export type ApiProject = {
   id: number;
   title: string;
@@ -22,6 +37,7 @@ export type ApiProject = {
   hv_join_token?: string;
   hausverwaltung: ApiUser | null;
   members?: ApiUser[];
+  presence?: ApiProjectPresence;
 };
 
 export type ApiTicketFile = {
