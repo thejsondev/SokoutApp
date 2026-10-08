@@ -17,6 +17,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { CallContactsModal, type CallContact } from "@/components/projects/CallContactsModal";
 import { CreateTicketModal } from "@/components/projects/CreateTicketModal";
 import { EditProjectModal } from "@/components/projects/EditProjectModal";
 import { QrModal } from "@/components/projects/QrModal";
@@ -28,7 +29,6 @@ import { api, apiBlob, ApiError, unwrapData } from "@/lib/api";
 import { isHausmeister, isHausverwaltung } from "@/lib/roles";
 import {
   filterAndSortTickets,
-  HM_PHONE,
   isOpenTicket,
   STATUS_FILTERS,
   type SortOrder,
@@ -48,6 +48,7 @@ export function ProjectDetail({ id }: { id: string }) {
   const [qrOpen, setQrOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [ticketOpen, setTicketOpen] = useState(false);
+  const [callOpen, setCallOpen] = useState(false);
   const [bewohnerOpen, setBewohnerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [togglingPresence, setTogglingPresence] = useState(false);
@@ -114,6 +115,24 @@ export function ProjectDetail({ id }: { id: string }) {
         isHausverwaltung(user.role) &&
         project.hausverwaltung?.id === user.id,
     );
+
+  const callContacts: CallContact[] = [];
+  const seenCallIds = new Set<number>();
+  for (const hausmeister of project.hausmeisters ?? []) {
+    if (!hausmeister.phone?.trim()) continue;
+    if (user && hausmeister.id === user.id) continue;
+    if (seenCallIds.has(hausmeister.id)) continue;
+    seenCallIds.add(hausmeister.id);
+    callContacts.push({ user: hausmeister, role: "hausmeister" });
+  }
+  const hvContact = project.hausverwaltung;
+  if (
+    hvContact?.phone?.trim() &&
+    (!user || hvContact.id !== user.id) &&
+    !seenCallIds.has(hvContact.id)
+  ) {
+    callContacts.push({ user: hvContact, role: "hausverwaltung" });
+  }
 
   async function togglePresence() {
     if (togglingPresence) return;
@@ -225,14 +244,15 @@ export function ProjectDetail({ id }: { id: string }) {
                   <Pencil className="h-5 w-5" />
                 </button>
               )}
-              {!hm && (
-                <a
-                  href={`tel:${HM_PHONE}`}
+              {callContacts.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setCallOpen(true)}
                   className="rounded-full bg-[#3CB346] p-2.5 text-white"
                   aria-label="Anrufen"
                 >
                   <Phone className="h-5 w-5" />
-                </a>
+                </button>
               )}
             </div>
           </div>
@@ -461,6 +481,12 @@ export function ProjectDetail({ id }: { id: string }) {
           onDeleted={() => router.replace(hm ? "/projects" : "/")}
         />
       )}
+
+      <CallContactsModal
+        open={callOpen}
+        contacts={callContacts}
+        onClose={() => setCallOpen(false)}
+      />
 
       {hm && bewohnerOpen && (
         <div

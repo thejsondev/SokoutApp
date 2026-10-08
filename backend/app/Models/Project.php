@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Enums\Role;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -70,6 +73,60 @@ class Project extends Model
     public function presenceLogs(): HasMany
     {
         return $this->hasMany(ProjectPresenceLog::class);
+    }
+
+    /**
+     * Hausmeisters connected to this project (creator, presence, ticket activity).
+     * Falls back to all Hausmeister accounts when none are linked yet.
+     *
+     * @return EloquentCollection<int, User>
+     */
+    public function linkedHausmeisters(): EloquentCollection
+    {
+        $ids = $this->linkedHausmeisterIds();
+
+        if ($ids->isEmpty()) {
+            return User::query()
+                ->where('role', Role::Hausmeister)
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->get();
+        }
+
+        return User::query()
+            ->where('role', Role::Hausmeister)
+            ->whereIn('id', $ids)
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, int>
+     */
+    public function linkedHausmeisterIds(): Collection
+    {
+        $ids = collect();
+
+        if ($this->created_by_user_id) {
+            $ids->push((int) $this->created_by_user_id);
+        }
+
+        $ids = $ids->merge(
+            ProjectPresenceLog::query()
+                ->where('project_id', $this->id)
+                ->whereHas('user', fn ($query) => $query->where('role', Role::Hausmeister))
+                ->pluck('user_id'),
+        );
+
+        $ids = $ids->merge(
+            TicketMessage::query()
+                ->whereHas('ticket', fn ($query) => $query->where('project_id', $this->id))
+                ->whereHas('user', fn ($query) => $query->where('role', Role::Hausmeister))
+                ->pluck('user_id'),
+        );
+
+        return $ids->map(fn ($id) => (int) $id)->unique()->values();
     }
 
     public function hasContract(): bool

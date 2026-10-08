@@ -43,6 +43,7 @@ export type ApiProject = {
   join_token?: string;
   hv_join_token?: string;
   hausverwaltung: ApiUser | null;
+  hausmeisters?: ApiUser[];
   members?: ApiUser[];
   presence?: ApiProjectPresence;
   has_contract?: boolean;

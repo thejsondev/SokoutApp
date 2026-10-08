@@ -27,6 +27,7 @@ class ProjectResource extends JsonResource
                 $this->hv_join_token,
             ),
             'hausverwaltung' => UserResource::make($this->whenLoaded('hausverwaltung')),
+            'hausmeisters' => UserResource::collection($this->linkedHausmeisters()),
             'members' => UserResource::collection($this->whenLoaded('members')),
             'presence' => [
                 'is_present' => ProjectPresenceController::isPresent($this->resource, $request->user()),
