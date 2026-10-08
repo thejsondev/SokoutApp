@@ -15,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CreateTicketModal } from "@/components/projects/CreateTicketModal";
 import { EditProjectModal } from "@/components/projects/EditProjectModal";
@@ -24,7 +25,7 @@ import { ProjectDetailSkeleton } from "@/components/ui/skeletons";
 import { TicketCard } from "@/components/tickets/TicketCard";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { api, apiBlob, ApiError, unwrapData } from "@/lib/api";
-import { isHausmeister } from "@/lib/roles";
+import { isHausmeister, isHausverwaltung } from "@/lib/roles";
 import {
   filterAndSortTickets,
   HM_PHONE,
@@ -40,6 +41,7 @@ function initials(firstName: string, lastName: string) {
 }
 
 export function ProjectDetail({ id }: { id: string }) {
+  const router = useRouter();
   const { user } = useAuth();
   const [project, setProject] = useState<ApiProject | null>(null);
   const [tickets, setTickets] = useState<ApiTicket[]>([]);
@@ -105,6 +107,13 @@ export function ProjectDetail({ id }: { id: string }) {
   const isPresent = Boolean(project.presence?.is_present);
   const anyonePresent = Boolean(project.presence?.anyone_present);
   const presentUsers = project.presence?.present_users ?? [];
+  const canEdit =
+    hm ||
+    Boolean(
+      user &&
+        isHausverwaltung(user.role) &&
+        project.hausverwaltung?.id === user.id,
+    );
 
   async function togglePresence() {
     if (togglingPresence) return;
@@ -189,14 +198,6 @@ export function ProjectDetail({ id }: { id: string }) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setEditOpen(true)}
-                    className="rounded-full bg-neutral-100 p-2.5 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100"
-                    aria-label="Projekt bearbeiten"
-                  >
-                    <Pencil className="h-5 w-5" />
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setQrOpen(true)}
                     className="rounded-full bg-neutral-100 p-2.5 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100"
                     aria-label="QR-Code"
@@ -213,6 +214,16 @@ export function ProjectDetail({ id }: { id: string }) {
                     <MapPin className="h-5 w-5" />
                   </a>
                 </>
+              )}
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => setEditOpen(true)}
+                  className="rounded-full bg-neutral-100 p-2.5 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100"
+                  aria-label="Projekt bearbeiten"
+                >
+                  <Pencil className="h-5 w-5" />
+                </button>
               )}
               {!hm && (
                 <a
@@ -440,12 +451,14 @@ export function ProjectDetail({ id }: { id: string }) {
         />
       )}
 
-      {hm && (
+      {canEdit && (
         <EditProjectModal
           open={editOpen}
           project={project}
+          canManageContract={hm}
           onClose={() => setEditOpen(false)}
           onUpdated={setProject}
+          onDeleted={() => router.replace(hm ? "/projects" : "/")}
         />
       )}
 
