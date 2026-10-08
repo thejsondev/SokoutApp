@@ -125,7 +125,7 @@ export function ChatList() {
           hint={
             user.role === "hausmeister"
               ? "Sobald Projekte eine Hausverwaltung haben, erscheinen sie hier."
-              : "Noch keine Hausmeister vorhanden."
+              : "Hier erscheinen Hausmeister, die mit dir in einem Projekt verbunden sind."
           }
         />
       ) : (

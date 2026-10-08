@@ -17,6 +17,7 @@ use Illuminate\Support\Str;
     'latitude',
     'longitude',
     'hausverwaltung_user_id',
+    'created_by_user_id',
     'join_token',
     'hv_join_token',
     'contract_path',
@@ -49,6 +50,11 @@ class Project extends Model
     public function hausverwaltung(): BelongsTo
     {
         return $this->belongsTo(User::class, 'hausverwaltung_user_id');
+    }
+
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_user_id');
     }
 
     public function members(): BelongsToMany

@@ -47,6 +47,8 @@ class ProjectController extends Controller
             $data['hausverwaltung_user_id'] ??= $request->user()->id;
         }
 
+        $data['created_by_user_id'] = $request->user()->id;
+
         $project = Project::query()->create($data);
         $project->load(['hausverwaltung', 'members']);
 

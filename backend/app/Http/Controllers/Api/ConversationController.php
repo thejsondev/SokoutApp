@@ -9,10 +9,13 @@ use App\Http\Resources\ChatContactResource;
 use App\Http\Resources\ConversationResource;
 use App\Models\Conversation;
 use App\Models\Project;
+use App\Models\ProjectPresenceLog;
+use App\Models\TicketMessage;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 class ConversationController extends Controller
@@ -108,8 +111,11 @@ class ConversationController extends Controller
                 ->all();
         }
 
+        $hmIds = $this->hausmeisterIdsLinkedToHausverwaltung($user);
+
         $peers = User::query()
             ->where('role', Role::Hausmeister)
+            ->whereIn('id', $hmIds)
             ->orderBy('first_name')
             ->orderBy('last_name')
             ->get();
@@ -142,6 +148,53 @@ class ConversationController extends Controller
     }
 
     /**
+     * Hausmeisters linked to this Hausverwaltung via shared projects.
+     *
+     * @return Collection<int, int>
+     */
+    private function hausmeisterIdsLinkedToHausverwaltung(User $hv): Collection
+    {
+        $projectIds = Project::query()
+            ->where('hausverwaltung_user_id', $hv->id)
+            ->pluck('id');
+
+        if ($projectIds->isEmpty()) {
+            return Conversation::query()
+                ->where('hausverwaltung_user_id', $hv->id)
+                ->pluck('hausmeister_user_id')
+                ->unique()
+                ->values();
+        }
+
+        $fromCreators = Project::query()
+            ->whereIn('id', $projectIds)
+            ->whereNotNull('created_by_user_id')
+            ->whereHas('createdBy', fn ($query) => $query->where('role', Role::Hausmeister))
+            ->pluck('created_by_user_id');
+
+        $fromPresence = ProjectPresenceLog::query()
+            ->whereIn('project_id', $projectIds)
+            ->whereHas('user', fn ($query) => $query->where('role', Role::Hausmeister))
+            ->pluck('user_id');
+
+        $fromTickets = TicketMessage::query()
+            ->whereHas('ticket', fn ($query) => $query->whereIn('project_id', $projectIds))
+            ->whereHas('user', fn ($query) => $query->where('role', Role::Hausmeister))
+            ->pluck('user_id');
+
+        $fromConversations = Conversation::query()
+            ->where('hausverwaltung_user_id', $hv->id)
+            ->pluck('hausmeister_user_id');
+
+        return $fromCreators
+            ->merge($fromPresence)
+            ->merge($fromTickets)
+            ->merge($fromConversations)
+            ->unique()
+            ->values();
+    }
+
+    /**
      * @return array{0: int, 1: int}
      */
     private function pairIds(User $user, User $peer): array
@@ -161,6 +214,15 @@ class ConversationController extends Controller
         }
 
         if ($user->role === Role::Hausverwaltung && $peer->role === Role::Hausmeister) {
+            $allowed = $this->hausmeisterIdsLinkedToHausverwaltung($user)
+                ->contains((int) $peer->id);
+
+            if (! $allowed) {
+                throw ValidationException::withMessages([
+                    'peer_user_id' => 'Keine gemeinsame Projektverbindung.',
+                ]);
+            }
+
             return [(int) $peer->id, (int) $user->id];
         }
 
