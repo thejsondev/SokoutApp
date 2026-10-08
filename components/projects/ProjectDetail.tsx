@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowDownNarrowWide, ArrowUpNarrowWide, Building2, MapPin, Phone, Plus, QrCode, Users } from "lucide-react";
+import { ArrowDownNarrowWide, ArrowUpNarrowWide, Building2, MapPin, Pencil, Phone, Plus, QrCode, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { CreateTicketModal } from "@/components/projects/CreateTicketModal";
+import { EditProjectModal } from "@/components/projects/EditProjectModal";
 import { QrModal } from "@/components/projects/QrModal";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ProjectDetailSkeleton } from "@/components/ui/skeletons";
@@ -29,6 +30,7 @@ export function ProjectDetail({ id }: { id: string }) {
   const [project, setProject] = useState<ApiProject | null>(null);
   const [tickets, setTickets] = useState<ApiTicket[]>([]);
   const [qrOpen, setQrOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [ticketOpen, setTicketOpen] = useState(false);
   const [bewohnerOpen, setBewohnerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -99,6 +101,14 @@ export function ProjectDetail({ id }: { id: string }) {
             <div className="flex shrink-0 items-center gap-2">
               {hm && (
                 <>
+                  <button
+                    type="button"
+                    onClick={() => setEditOpen(true)}
+                    className="rounded-full bg-neutral-100 p-2.5 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100"
+                    aria-label="Projekt bearbeiten"
+                  >
+                    <Pencil className="h-5 w-5" />
+                  </button>
                   <button
                     type="button"
                     onClick={() => setQrOpen(true)}
@@ -266,6 +276,15 @@ export function ProjectDetail({ id }: { id: string }) {
           bewohnerUrl={bewohnerUrl}
           hausverwaltungUrl={hausverwaltungUrl}
           onClose={() => setQrOpen(false)}
+        />
+      )}
+
+      {hm && (
+        <EditProjectModal
+          open={editOpen}
+          project={project}
+          onClose={() => setEditOpen(false)}
+          onUpdated={setProject}
         />
       )}
 
