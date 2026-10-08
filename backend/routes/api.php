@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ChatFileController;
 use App\Http\Controllers\Api\ChatMessageController;
 use App\Http\Controllers\Api\ConversationController;
+use App\Http\Controllers\Api\ProjectContractController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\ProjectJoinController;
 use App\Http\Controllers\Api\ProjectPresenceController;
@@ -36,6 +37,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('users', UserController::class);
 
     Route::apiResource('projects', ProjectController::class);
+
+    Route::get('projects/{project}/contract', [ProjectContractController::class, 'show'])->name('projects.contract.show');
+    Route::post('projects/{project}/contract', [ProjectContractController::class, 'store']);
+    Route::delete('projects/{project}/contract', [ProjectContractController::class, 'destroy']);
 
     Route::get('projects/{project}/members', [ProjectMemberController::class, 'index']);
     Route::post('projects/{project}/members', [ProjectMemberController::class, 'store']);

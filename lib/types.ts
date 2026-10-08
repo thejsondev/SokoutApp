@@ -27,6 +27,13 @@ export type ApiProjectPresence = {
   logs?: ApiPresenceLog[];
 };
 
+export type ApiProjectContract = {
+  original_name: string | null;
+  mime_type: string | null;
+  size: number | null;
+  url: string;
+};
+
 export type ApiProject = {
   id: number;
   title: string;
@@ -38,6 +45,8 @@ export type ApiProject = {
   hausverwaltung: ApiUser | null;
   members?: ApiUser[];
   presence?: ApiProjectPresence;
+  has_contract?: boolean;
+  contract?: ApiProjectContract | null;
 };
 
 export type ApiTicketFile = {

@@ -5,6 +5,7 @@ import {
   ArrowUpNarrowWide,
   Building2,
   ChevronRight,
+  FileText,
   Home,
   MapPin,
   Pencil,
@@ -22,7 +23,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ProjectDetailSkeleton } from "@/components/ui/skeletons";
 import { TicketCard } from "@/components/tickets/TicketCard";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { api, ApiError, unwrapData } from "@/lib/api";
+import { api, apiBlob, ApiError, unwrapData } from "@/lib/api";
 import { isHausmeister } from "@/lib/roles";
 import {
   filterAndSortTickets,
@@ -49,6 +50,7 @@ export function ProjectDetail({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
   const [togglingPresence, setTogglingPresence] = useState(false);
   const [presenceError, setPresenceError] = useState<string | null>(null);
+  const [openingContract, setOpeningContract] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
 
@@ -99,6 +101,7 @@ export function ProjectDetail({ id }: { id: string }) {
   const bewohner = (project.members ?? []).filter((member) => member.role === "bewohner");
   const memberCount = bewohner.length;
   const projectId = project.id;
+  const hasContract = Boolean(project.has_contract);
   const isPresent = Boolean(project.presence?.is_present);
   const anyonePresent = Boolean(project.presence?.anyone_present);
   const presentUsers = project.presence?.present_users ?? [];
@@ -133,6 +136,23 @@ export function ProjectDetail({ id }: { id: string }) {
       );
     } finally {
       setTogglingPresence(false);
+    }
+  }
+
+  async function openContract() {
+    if (openingContract || !hasContract) return;
+    setOpeningContract(true);
+    try {
+      const blob = await apiBlob(`/projects/${projectId}/contract`);
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      setPresenceError(
+        err instanceof ApiError ? err.firstError() : "Vertrag konnte nicht geöffnet werden.",
+      );
+    } finally {
+      setOpeningContract(false);
     }
   }
 
@@ -245,6 +265,42 @@ export function ProjectDetail({ id }: { id: string }) {
           </span>
           <ChevronRight className="h-4 w-4 shrink-0 text-neutral-400" />
         </Link>
+
+        {hasContract ? (
+          <button
+            type="button"
+            onClick={() => void openContract()}
+            disabled={openingContract}
+            className="flex w-full items-center gap-3 rounded-[24px] border border-neutral-100 bg-neutral-50 px-4 py-3.5 text-left transition hover:border-neutral-200 disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-neutral-700"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#3CB346]/12 text-[#2e9a38]">
+              <FileText className="h-5 w-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-medium text-neutral-900 dark:text-white">
+                {openingContract ? "Öffnen..." : "Vertrag"}
+              </span>
+              <span className="mt-0.5 block truncate text-xs text-neutral-500">
+                {project.contract?.original_name || "PDF ansehen"}
+              </span>
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-neutral-400" />
+          </button>
+        ) : hm ? (
+          <button
+            type="button"
+            onClick={() => setEditOpen(true)}
+            className="flex w-full items-center gap-3 rounded-[24px] border border-dashed border-neutral-200 bg-neutral-50 px-4 py-3.5 text-left dark:border-neutral-700 dark:bg-neutral-900"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-500 dark:bg-neutral-800">
+              <FileText className="h-5 w-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-medium text-neutral-900 dark:text-white">Vertrag hochladen</span>
+              <span className="mt-0.5 block text-xs text-neutral-500">PDF im Bearbeiten-Dialog hinzufügen</span>
+            </span>
+          </button>
+        ) : null}
 
         {hm && (
           <div className="grid grid-cols-2 gap-2">

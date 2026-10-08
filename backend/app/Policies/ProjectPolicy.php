@@ -47,4 +47,10 @@ class ProjectPolicy
         return $user->role === Role::Hausmeister
             && $user->canAccessProject($project);
     }
+
+    public function manageContract(User $user, Project $project): bool
+    {
+        return $user->role === Role::Hausmeister
+            && $user->canAccessProject($project);
+    }
 }

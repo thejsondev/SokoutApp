@@ -33,6 +33,13 @@ class ProjectResource extends JsonResource
                 'anyone_present' => $presentUsers->isNotEmpty(),
                 'present_users' => UserResource::collection($presentUsers),
             ],
+            'has_contract' => $this->hasContract(),
+            'contract' => $this->when($this->hasContract(), [
+                'original_name' => $this->contract_original_name,
+                'mime_type' => $this->contract_mime_type,
+                'size' => $this->contract_size,
+                'url' => '/projects/'.$this->id.'/contract',
+            ]),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

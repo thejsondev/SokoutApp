@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { api, ApiError, unwrapData } from "@/lib/api";
+import { FileText, Trash2, Upload } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { api, apiForm, ApiError, unwrapData } from "@/lib/api";
 import type { ApiProject } from "@/lib/types";
 
 export function EditProjectModal({
@@ -15,8 +16,11 @@ export function EditProjectModal({
   onClose: () => void;
   onUpdated: (project: ApiProject) => void;
 }) {
+  const fileRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState(project.title);
   const [address, setAddress] = useState(project.address);
+  const [contractFile, setContractFile] = useState<File | null>(null);
+  const [removeContract, setRemoveContract] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -24,11 +28,16 @@ export function EditProjectModal({
     if (!open) return;
     setTitle(project.title);
     setAddress(project.address);
+    setContractFile(null);
+    setRemoveContract(false);
     setError(null);
     setPending(false);
-  }, [open, project.address, project.title]);
+    if (fileRef.current) fileRef.current.value = "";
+  }, [open, project.address, project.title, project.id]);
 
   if (!open) return null;
+
+  const existingContract = !removeContract && project.has_contract ? project.contract : null;
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
@@ -36,11 +45,31 @@ export function EditProjectModal({
     setError(null);
 
     try {
-      const updated = await api<{ data: ApiProject }>(`/projects/${project.id}`, {
-        method: "PATCH",
-        body: { title: title.trim(), address: address.trim() },
-      });
-      onUpdated(unwrapData(updated));
+      let updated = unwrapData(
+        await api<{ data: ApiProject }>(`/projects/${project.id}`, {
+          method: "PATCH",
+          body: { title: title.trim(), address: address.trim() },
+        }),
+      );
+
+      if (removeContract && project.has_contract && !contractFile) {
+        await api(`/projects/${project.id}/contract`, { method: "DELETE" });
+        updated = {
+          ...updated,
+          has_contract: false,
+          contract: null,
+        };
+      }
+
+      if (contractFile) {
+        const form = new FormData();
+        form.append("contract", contractFile);
+        updated = unwrapData(
+          await apiForm<{ data: ApiProject }>(`/projects/${project.id}/contract`, form),
+        );
+      }
+
+      onUpdated(updated);
       onClose();
     } catch (err) {
       setError(err instanceof ApiError ? err.firstError() : "Projekt konnte nicht gespeichert werden.");
@@ -87,6 +116,79 @@ export function EditProjectModal({
               placeholder="Straße, PLZ Ort"
             />
           </label>
+
+          <div>
+            <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Vertrag (PDF)</p>
+            {existingContract && !contractFile && (
+              <div className="mt-1.5 flex items-center gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 dark:border-neutral-700 dark:bg-neutral-950">
+                <FileText className="h-5 w-5 shrink-0 text-[#3CB346]" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-neutral-900 dark:text-white">
+                    {existingContract.original_name || "Vertrag.pdf"}
+                  </p>
+                  <p className="text-xs text-neutral-500">Aktueller Vertrag</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRemoveContract(true)}
+                  className="rounded-full bg-white p-2 text-neutral-500 dark:bg-neutral-900"
+                  aria-label="Vertrag entfernen"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
+            {contractFile && (
+              <div className="mt-1.5 flex items-center gap-3 rounded-2xl border border-[#3CB346]/30 bg-[#3CB346]/10 px-4 py-3">
+                <FileText className="h-5 w-5 shrink-0 text-[#2e9a38]" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-neutral-900 dark:text-white">
+                    {contractFile.name}
+                  </p>
+                  <p className="text-xs text-neutral-500">Wird beim Speichern hochgeladen</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setContractFile(null);
+                    if (fileRef.current) fileRef.current.value = "";
+                  }}
+                  className="rounded-full bg-white p-2 text-neutral-500 dark:bg-neutral-900"
+                  aria-label="Auswahl entfernen"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-full bg-neutral-100 px-4 py-3 text-sm font-medium text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+            >
+              <Upload className="h-4 w-4" />
+              {existingContract || contractFile ? "Vertrag wechseln" : "PDF hochladen"}
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/pdf,.pdf"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null;
+                if (!file) return;
+                if (file.type && file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+                  setError("Nur PDF-Dateien sind erlaubt.");
+                  event.target.value = "";
+                  return;
+                }
+                setError(null);
+                setRemoveContract(false);
+                setContractFile(file);
+              }}
+            />
+          </div>
 
           <button
             type="submit"
